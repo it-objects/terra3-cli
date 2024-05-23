@@ -50,7 +50,7 @@ var dbCmd = &cobra.Command{
 	Short: "Interact with your provisioned AWS RDS instance.",
 	Long:  `TODO A longer description `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("TODO add info that db requires a sub-command")
+		fmt.Println("Command db requires a sub-command such as port-forward.")
 	},
 }
 
