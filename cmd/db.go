@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/it-objects/terra3-cli/ssmclient"
 	"log"
 	"strconv"
 	"strings"
-	"terra3-cli/ssmclient"
 	"time"
 
 	"context"

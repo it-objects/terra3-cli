@@ -1,4 +1,4 @@
-module terra3-cli
+module github.com/it-objects/terra3-cli
 
 go 1.21.0
 
