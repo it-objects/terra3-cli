@@ -30,8 +30,6 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(dbCmd)
-	rootCmd.AddCommand(loginCmd)
 	dbCmd.AddCommand(dbPortForwardCmd)
 	dbPortForwardCmd.Flags().StringVarP(&profile, "profile", "p", "", "Optional AWS profile to use. If not provided, a selection menu will open.")
 }
