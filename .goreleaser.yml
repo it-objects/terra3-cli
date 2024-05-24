@@ -81,17 +81,17 @@ brews:
   - name: terra3
     repository:
       owner: it-objects
-      name: terra3-cli-dist
+      name: homebrew-terra3-cli
       branch: main
     commit_author:
       name: Widura Schwittek
       email: widura.schwittek@it-objects.de
     directory: Formula
     homepage: https://terra3.io/
-    description: A CLI to manage AWS deployments based on the Terr3 stack!
+    description: A CLI to manage AWS deployments based on the Terra3 stack!
     license: "Apache-2.0"
-    #test: |
-    #  system "terra3 version"
+    test: |
+     system "terra3 version"
 
 scoops:
   - name: terra3
@@ -104,7 +104,7 @@ scoops:
       email: widura.schwittek@it-objects.de
     directory: Scoops
     homepage: https://terra3.io/
-    description: A CLI to manage AWS deployments based on the Terr3 stack!
+    description: A CLI to manage AWS deployments based on the Terra3 stack!
     license: "Apache-2.0"
 
 #sboms:
