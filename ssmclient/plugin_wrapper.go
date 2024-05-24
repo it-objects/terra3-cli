@@ -2,7 +2,7 @@ package ssmclient
 
 import (
 	"context"
-	logger "log"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -31,7 +31,7 @@ func PluginSession(cfg aws.Config, input *ssm.StartSessionInput) error {
 	// and we can't trust the data channel connection state at that point.  Intercepting signals
 	// means we're probably trying to shutdown somewhere in the outer loop, and there's a good
 	// possibility that the data channel is still valid
-	installSignalHandler(datachannel.DataChannel{})
+	installSignalHandler()
 
 	ssmSession := new(session.Session)
 	ssmSession.SessionId = *out.SessionId
@@ -45,16 +45,15 @@ func PluginSession(cfg aws.Config, input *ssm.StartSessionInput) error {
 	return ssmSession.Execute(log.Logger(false, ssmSession.ClientId))
 }
 
-// shared with ssh.go.
-func installSignalHandler(c datachannel.DataChannel) {
+func installSignalHandler() {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGQUIT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigCh
-		logger.Printf("Got signal: %s, shutting down", sig.String())
+		fmt.Printf("Got signal: %s, shutting down...", sig.String())
 
 		//_ = c..TerminateSession()
-		_ = c.Close(log.Logger(false, ""))
+		//_ = c.Close(log.Logger(false, ""))
 
 		os.Exit(0)
 	}()

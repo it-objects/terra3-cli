@@ -38,8 +38,8 @@ func init() {
 
 var loginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Built-in OIDC login without requiring the AWS CLI.",
-	Long:  `TODO A longer description `,
+	Short: "Built-in OIDC login without requiring the AWS CLI. (experimental)",
+	Long:  `Built-in OIDC login without requiring the AWS CLI. This feature is experimental.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		login()
 	},
@@ -48,22 +48,24 @@ var loginCmd = &cobra.Command{
 var dbCmd = &cobra.Command{
 	Use:   "db",
 	Short: "Interact with your provisioned AWS RDS instance.",
-	Long:  `TODO A longer description `,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Command db requires a sub-command such as port-forward.")
-	},
+	Long: `Interact with your provisioned AWS RDS instance. Use one of the sub-commands.
+	* port-forward: Establish a port forwarding to your RDS instance.
+	`,
 }
 
 var dbPortForwardCmd = &cobra.Command{
 	Use:   "port-forward",
-	Short: "Lists all available databases and pick the one to establish a port forwarding to.",
-	Long:  `TODO A longer description `,
+	Short: "Create a secure port-forward to the private RDS database using SSM.",
+	Long: `Create a secure port-forward to the private RDS database using SSM. If used without the profile parameter,
+	it will open up a selection menu to choose the AWS profile to use. If used with a profile parameter, it will use 
+	the given profile.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		connectToRdsViaSSMTunnel()
+		dbPortForwardToDB()
 	},
 }
 
-func connectToRdsViaSSMTunnel() {
+func dbPortForwardToDB() {
+	fmt.Print("Terra3 CLI: Establish a secure port-forward to the private RDS database using SSM with the profile you are going to pick.\n\n")
 
 	// If profile is given by dbPortForwardCmd.Flags() then set os.Setenv("AWS_PROFILE", result)
 	if profile != "" {
@@ -77,8 +79,9 @@ func connectToRdsViaSSMTunnel() {
 
 		// Prompt user to select a profile
 		prompt := promptui.Select{
-			Label: "Select AWS profile",
-			Items: profiles,
+			Label:     "Select AWS profile",
+			Items:     profiles,
+			CursorPos: 1,
 		}
 
 		_, result, err := prompt.Run()

@@ -12,28 +12,20 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "terra3",
-	Short: "A tool that makes it easy to cope with Terra3 provisioned enviroments.",
-	Long: `Welcome to Terra3 - An opinionated Terraform module for ramping-up 3-tier architectures in AWS in no time!
-
-	This repository contains a collection of Terraform modules that aim to make it 
-	easier and faster for customers to get started with a 3-tier-architecture in AWS. 
-	It can be used to configure and provision a complete stack with
+	Short: "A tool that makes it easy to interact with Terra3 provisioned enviroments.",
+	Long: `Welcome to Terra3 CLI - A tool that makes it easy to interact with Terra3 provisioned enviroments.
 	
-	* a static website served from S3 and AWS Cloudfront
+	Hold on. What is Terra3, anyway? Terra3 is an opinionated Terraform module for 
+	ramping-up 3-tier architectures in AWS in no time! Goto https://terra3.io for further information.
 	
-	* a containerized backend/API running on AWS ECS
+	The Terra3 CLI provides features to manage Terra3 stacks from the command line. It can
 	
-	* an AWS RDS MySQL/Postgres database
-	
-	* an AWS ElastiCache Redis
-	
-	It is the result of many projects we did for customers with similar requirements. 
-	And rather than starting from scratch with every project, we've created reusable 
-	Terraform modules. What started as an internal library, now evolved into a single 
-	module we'd like to share and to give back to the community as open source.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	* create a secure port-forward to the private RDS database using SSM 
+	* manage environment hibernation (start/stop/status)
+	* manage AWS secrets related to the environment
+	* comfortably shelling into a container (if ECS exec is activated for the cluster)
+	* and much more to come! 
+	`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -46,5 +38,4 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
