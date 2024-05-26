@@ -63,7 +63,7 @@ var dbPortForwardCmd = &cobra.Command{
 }
 
 func dbPortForwardToDB() {
-	fmt.Print("Terra3 CLI: Establish a secure port-forward to the private RDS database using SSM with the profile you are going to pick.\n\n")
+	fmt.Print("Terra3 CLI: Establish a secure port-forward to the private RDS database using SSM with the profile you are going to pick.\nNote: if session is unused, it will close automatically after 60 seconds.\n")
 
 	// If profile is given by dbPortForwardCmd.Flags() then set os.Setenv("AWS_PROFILE", result)
 	if profile != "" {
@@ -111,8 +111,8 @@ func dbPortForwardToDB() {
 
 	showIamDetails()
 
-	fmt.Printf("\nBastion host found with id: %s\n", bastionHostID)
-	fmt.Printf("RDS database found with url: %s:%d\n", rdsURL, 3306)
+	fmt.Printf("\nBastion host detected with id: %s\n", bastionHostID)
+	fmt.Printf("RDS database detected with url:  %s:%d\n\n", rdsURL, 3306)
 
 	wordPromptContent := promptContent{
 		"Please provide a port number.",
@@ -604,7 +604,12 @@ func showIamDetails() {
 }
 
 func loadAllAWSProfiles() ([]string, error) {
-	configFile := os.Getenv("HOME") + "/.aws/config"
+	home := os.Getenv("HOME")
+	if home == "" {
+		// assume Windows
+		home = os.Getenv("USERPROFILE")
+	}
+	configFile := home + string(os.PathSeparator) + ".aws" + string(os.PathSeparator) + "config"
 	file, err := os.Open(configFile)
 	if err != nil {
 		return nil, err
