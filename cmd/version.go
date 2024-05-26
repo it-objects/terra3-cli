@@ -15,7 +15,7 @@ var versionCmd = &cobra.Command{
 	Short: "Prints out Terra3 CLI version.",
 	Long:  `Prints out Terra3 CLI version.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Terra3 CLI v0.0.5")
+		fmt.Println("Terra3 CLI v0.0.7")
 	},
 }
 
