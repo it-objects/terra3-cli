@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/sso"
@@ -101,24 +102,27 @@ func dbPortForwardToDB() {
 
 	bastionHostID, err := getBastionHostID(ec2Client)
 	if err != nil {
-		log.Fatalf("unable to get bastion host ID, %v", err)
+		bastionHostID, err = selectRunningEC2Instance(ec2Client)
+		if err != nil {
+			log.Printf("unable to get any running EC2 instance. Please launch a bastion host first and try again.")
+		}
 	}
 
-	rdsURL, err := getRDSURL(rdsClient)
+	rdsURL, rdsPort, err := getRDSURL(rdsClient)
 	if err != nil {
-		log.Fatalf("unable to get RDS URL, %v", err)
+		log.Fatalf("unable to get RDS URL, %v.", err)
 	}
 
 	showIamDetails()
 
-	fmt.Printf("\nBastion host detected with id: %s\n", bastionHostID)
-	fmt.Printf("RDS database detected with url:  %s:%d\n\n", rdsURL, 3306)
+	fmt.Printf("\nBastion host detected with id:  %s\n", bastionHostID)
+	fmt.Printf("RDS database detected with url: %s:%d\n\n", rdsURL, rdsPort)
 
 	wordPromptContent := promptContent{
 		"Please provide a port number.",
 		"What port number would you like to be opened locally?",
 	}
-	inputLocalPort := promptGetInput(wordPromptContent)
+	inputLocalPort := promptGetInput(wordPromptContent, rdsPort)
 
 	// Convert inputLocalPort from string to int
 	localPort, err := strconv.Atoi(inputLocalPort)
@@ -127,7 +131,77 @@ func dbPortForwardToDB() {
 	}
 
 	// create ssm tunnel with internal ssh
-	ssm_tunnel(bastionHostID, rdsURL, localPort)
+	ssm_tunnel(bastionHostID, rdsURL, rdsPort, localPort)
+}
+
+func selectRunningEC2Instance(client *ec2.Client) (string, error) {
+	// selector to show running EC2 instance and have the user select one
+	resp, err := client.DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
+		Filters: []types.Filter{
+			{
+				Name:   aws.String("instance-state-name"),
+				Values: []string{"running"},
+			},
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("unable to list EC2 instances: %v", err)
+	}
+
+	// Create a slice to hold instance details for display
+	type instanceInfo struct {
+		ID   string
+		Name string
+		Info string // Combined info for display in prompt
+	}
+
+	var instances []instanceInfo
+	for _, reservation := range resp.Reservations {
+		for _, instance := range reservation.Instances {
+			id := *instance.InstanceId
+			name := "Unnamed"
+
+			// Try to get the Name tag
+			for _, tag := range instance.Tags {
+				if *tag.Key == "Name" {
+					name = *tag.Value
+					break
+				}
+			}
+
+			// Format display string
+			info := fmt.Sprintf("%-20s | %-15s | %s", id, string(instance.InstanceType), name)
+			instances = append(instances, instanceInfo{
+				ID:   id,
+				Name: name,
+				Info: info,
+			})
+		}
+	}
+
+	if len(instances) == 0 {
+		return "", fmt.Errorf("no running EC2 instances found")
+	}
+
+	// Create a slice of strings for promptui
+	var displayOptions []string
+	for _, instance := range instances {
+		displayOptions = append(displayOptions, instance.Info)
+	}
+
+	// Create the prompt
+	prompt := promptui.Select{
+		Label: "Select EC2 instance",
+		Items: displayOptions,
+	}
+
+	idx, _, err := prompt.Run()
+	if err != nil {
+		return "", fmt.Errorf("prompt failed: %v", err)
+	}
+
+	// Return the ID of the selected instance
+	return instances[idx].ID, nil
 }
 
 func getBastionHostID(client *ec2.Client) (string, error) {
@@ -136,11 +210,14 @@ func getBastionHostID(client *ec2.Client) (string, error) {
 		return "", err
 	}
 
+	// if bastion host has tag with bastion and if ec2 instance is in state running
 	for _, reservation := range resp.Reservations {
 		for _, instance := range reservation.Instances {
-			for _, tag := range instance.Tags {
-				if strings.Contains(*tag.Value, "bastion") {
-					return *instance.InstanceId, nil
+			if instance.State.Name == "running" {
+				for _, tag := range instance.Tags {
+					if strings.Contains(*tag.Value, "bastion") {
+						return *instance.InstanceId, nil
+					}
 				}
 			}
 		}
@@ -149,17 +226,17 @@ func getBastionHostID(client *ec2.Client) (string, error) {
 	return "", fmt.Errorf("no bastion host found")
 }
 
-func getRDSURL(client *rds.Client) (string, error) {
+func getRDSURL(client *rds.Client) (string, int32, error) {
 	resp, err := client.DescribeDBInstances(context.TODO(), &rds.DescribeDBInstancesInput{})
 	if err != nil {
-		return "", err
+		return "", -1, err
 	}
 
 	if len(resp.DBInstances) == 0 {
-		return "", fmt.Errorf("no RDS instances found")
+		return "", -1, fmt.Errorf("no RDS instances found")
 	}
 
-	return *resp.DBInstances[0].Endpoint.Address, nil
+	return *resp.DBInstances[0].Endpoint.Address, *resp.DBInstances[0].Endpoint.Port, nil
 }
 
 // add array of constants containing all AWS regions available
@@ -309,7 +386,7 @@ type promptContent struct {
 	label    string
 }
 
-func ssm_tunnel(bastionHostID string, rdsURL string, localPort int) {
+func ssm_tunnel(bastionHostID string, rdsURL string, rdsPort int32, localPort int) {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)
@@ -317,7 +394,7 @@ func ssm_tunnel(bastionHostID string, rdsURL string, localPort int) {
 
 	in := ssmclient.PortForwardingInput{
 		Target:     bastionHostID,
-		RemotePort: 3306, // constant
+		RemotePort: int(rdsPort),
 		LocalPort:  localPort,
 		Host:       rdsURL,
 	}
@@ -327,7 +404,7 @@ func ssm_tunnel(bastionHostID string, rdsURL string, localPort int) {
 	log.Fatal(ssmclient.PortPluginSession(cfg, &in))
 }
 
-func promptGetInput(pc promptContent) string {
+func promptGetInput(pc promptContent, proposedPort int32) string {
 
 	validate := func(input string) error {
 		if len(input) <= 0 {
@@ -353,7 +430,7 @@ func promptGetInput(pc promptContent) string {
 
 	prompt := promptui.Prompt{
 		Label:     pc.label,
-		Default:   "3306",
+		Default:   strconv.Itoa(int(proposedPort)),
 		Templates: templates,
 		Validate:  validate,
 	}
