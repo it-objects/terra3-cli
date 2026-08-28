@@ -236,7 +236,42 @@ func getRDSURL(client *rds.Client) (string, int32, error) {
 		return "", -1, fmt.Errorf("no RDS instances found")
 	}
 
-	return *resp.DBInstances[0].Endpoint.Address, *resp.DBInstances[0].Endpoint.Port, nil
+	if len(resp.DBInstances) == 1 {
+		return *resp.DBInstances[0].Endpoint.Address, *resp.DBInstances[0].Endpoint.Port, nil
+	}
+
+	type dbInfo struct {
+		Address string
+		Port    int32
+		Display string
+	}
+
+	var instances []dbInfo
+	for _, db := range resp.DBInstances {
+		id := aws.ToString(db.DBInstanceIdentifier)
+		engine := aws.ToString(db.Engine)
+		addr := aws.ToString(db.Endpoint.Address)
+		port := *db.Endpoint.Port
+		display := fmt.Sprintf("%-30s | %-12s | %s:%d", id, engine, addr, port)
+		instances = append(instances, dbInfo{Address: addr, Port: port, Display: display})
+	}
+
+	var displayOptions []string
+	for _, db := range instances {
+		displayOptions = append(displayOptions, db.Display)
+	}
+
+	prompt := promptui.Select{
+		Label: "Select RDS instance",
+		Items: displayOptions,
+	}
+
+	idx, _, err := prompt.Run()
+	if err != nil {
+		return "", -1, fmt.Errorf("prompt failed: %v", err)
+	}
+
+	return instances[idx].Address, instances[idx].Port, nil
 }
 
 // add array of constants containing all AWS regions available
