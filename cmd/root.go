@@ -40,4 +40,6 @@ func Execute() {
 func init() {
 	rootCmd.AddCommand(dbCmd)
 	rootCmd.AddCommand(loginCmd)
+	// platformCmd registers itself via its own init()
 }
+
